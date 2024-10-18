@@ -1,2 +1,19 @@
 git config --global user.name RenanZenaro
 git config --global user.email renanzenaro@hotmail.com
+
+
+dependencias:
+
+expo install @expo/vector-icons
+@react-native-async-storage/async-storage
+@react-native-community/masked-view
+@react-navigation/native
+@react-navigation/native-stack
+expo-sqlite
+expo-status-bar
+react-native-gesture-handler
+react-native-paper
+react-native-reanimated
+react-native-safe-area-context
+react-native-screens
+react-native-sqlite-storage
