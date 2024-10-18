@@ -4,16 +4,16 @@ git config --global user.email renanzenaro@hotmail.com
 
 dependencias:
 
-expo install @expo/vector-icons
-@react-native-async-storage/async-storage
-@react-native-community/masked-view
-@react-navigation/native
-@react-navigation/native-stack
-expo-sqlite
-expo-status-bar
-react-native-gesture-handler
-react-native-paper
-react-native-reanimated
-react-native-safe-area-context
-react-native-screens
-react-native-sqlite-storage
+npx expo install @expo/vector-icons
+npx expo install @react-native-async-storage/async-storage
+npx expo install @react-native-community/masked-view
+npx expo install @react-navigation/native
+npx expo install @react-navigation/native-stack
+npx expo install expo-sqlite
+npx expo install expo-status-bar
+npx expo install react-native-gesture-handler
+npx expo install react-native-paper
+npx expo install react-native-reanimated
+npx expo install react-native-safe-area-context
+npx expo install react-native-screens
+npx expo install react-native-sqlite-storage
