@@ -30,7 +30,7 @@ const createTables = () => {
       `CREATE TABLE IF NOT EXISTS notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         instrumentId INTEGER,
-        note TEXT NOT NULL,
+        content TEXT NOT NULL,
         FOREIGN KEY (instrumentId) REFERENCES instruments(id)
       );`
     );

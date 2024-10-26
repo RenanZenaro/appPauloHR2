@@ -1,48 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { getDatabase } from '../database';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY_NOTES = '@notes';
 
 const DetailScreen = ({ route }) => {
-  const { instrument } = route.params;
+  const { instrument } = route.params; // Instrumento recebido da InstrumentScreen
   const [note, setNote] = useState('');
-  const [notes, setNotes] = useState([]);
-  const db = getDatabase();
+  const [notesList, setNotesList] = useState([]);
+  const [editingNote, setEditingNote] = useState(null); // Nota em edição
 
   useEffect(() => {
-    loadNotes();
-  }, [instrument.id]);
-
-  const loadNotes = () => {
-    db.transaction(tx => {
-      tx.executeSql('SELECT * FROM notes WHERE instrumentId = ?', [instrument.id], (_, { rows }) => {
-        const notesArray = [];
-        for (let i = 0; i < rows.length; i++) {
-          notesArray.push(rows.item(i));
+    const loadNotes = async () => {
+      try {
+        const storedNotes = await AsyncStorage.getItem(STORAGE_KEY_NOTES);
+        if (storedNotes) {
+          const parsedNotes = JSON.parse(storedNotes);
+          const instrumentNotes = parsedNotes.filter((nt) => nt.instrumentId === instrument.id);
+          setNotesList(instrumentNotes);
         }
-        setNotes(notesArray);
-      });
-    });
-  };
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadNotes();
+  }, []);
 
-  const saveNote = () => {
-    if (note.trim()) {
-      db.transaction(tx => {
-        tx.executeSql('INSERT INTO notes (content, instrumentId) VALUES (?, ?)', [note, instrument.id], () => {
-          loadNotes();
-          setNote('');
-        }, (_, error) => {
-          console.error('Error inserting note:', error);
-        });
-      });
-    } else {
-      Alert.alert('Erro', 'Por favor, insira uma anotação.');
+  const saveNotes = async (newList) => {
+    try {
+      const allNotes = JSON.parse(await AsyncStorage.getItem(STORAGE_KEY_NOTES)) || [];
+      const updatedNotes = allNotes.filter((nt) => nt.instrumentId !== instrument.id).concat(newList);
+      await AsyncStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(updatedNotes));
+    } catch (e) {
+      console.error(e);
     }
   };
 
+  const addOrUpdateNote = () => {
+    if (note.trim()) {
+      let updatedList;
+      if (editingNote) {
+        updatedList = notesList.map((nt) =>
+          nt.id === editingNote.id ? { ...nt, text: note } : nt
+        );
+        setEditingNote(null);
+      } else {
+        const newNote = {
+          id: Date.now().toString(),
+          text: note,
+          createdAt: new Date().toLocaleString(),
+          instrumentId: instrument.id,
+        };
+        updatedList = [newNote, ...notesList];
+      }
+      setNotesList(updatedList);
+      saveNotes(updatedList);
+      setNote('');
+    }
+  };
+
+  const editNote = (note) => {
+    setNote(note.text);
+    setEditingNote(note);
+  };
+
   const confirmRemoveNote = (id) => {
+    if (Platform.OS === 'web') {
+      if (confirm("Deseja Excluir Esta Nota?")) {
+        removeNote(id);
+      }
+    }
     Alert.alert(
       'Confirmação',
-      'Você tem certeza que deseja remover esta anotação?',
+      'Você tem certeza que deseja remover esta nota?',
       [
         {
           text: 'Cancelar',
@@ -58,22 +88,15 @@ const DetailScreen = ({ route }) => {
     );
   };
 
-  const removeNote = (id) => {
-    db.transaction(tx => {
-      tx.executeSql('DELETE FROM notes WHERE id = ?', [id], loadNotes, (_, error) => {
-        console.error('Error deleting note:', error);
-      });
-    });
-  };
-
-  const editNote = (note) => {
-    setNote(note.content);
-    // Optionally handle editing logic
+  const removeNote = async (id) => {
+    const updatedList = notesList.filter((nt) => nt.id !== id);
+    setNotesList(updatedList);
+    saveNotes(updatedList);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.detailText}>{instrument.name}</Text>
+      <Text style={styles.detailText}>{instrument.text}</Text>
 
       <TextInput
         style={styles.input}
@@ -82,17 +105,18 @@ const DetailScreen = ({ route }) => {
         onChangeText={setNote}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={saveNote}>
-        <Text style={styles.addButtonText}>Adicionar Anotação</Text>
+      <TouchableOpacity style={styles.addButton} onPress={addOrUpdateNote}>
+        <Text style={styles.addButtonText}>{editingNote ? 'Atualizar' : 'Adicionar Anotação'}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.notesTitle}>Anotações:</Text>
+      <Text style={styles.additionalStringsTitle}>Anotações Adicionadas:</Text>
+
       <FlatList
-        data={notes}
-        keyExtractor={(note) => note.id.toString()}
+        data={notesList}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.noteContainer}>
-            <Text style={styles.noteText}>{item.content}</Text>
+            <Text style={styles.noteText}>{item.text}</Text>
             <View style={styles.noteActions}>
               <TouchableOpacity onPress={() => editNote(item)}>
                 <Text style={styles.editText}>Editar</Text>
@@ -112,7 +136,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#f8f9fa',
   },
   detailText: {
     fontSize: 24,
@@ -142,7 +166,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  notesTitle: {
+  additionalStringsTitle: {
     fontSize: 20,
     marginVertical: 10,
     fontWeight: 'bold',
@@ -160,7 +184,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     flex: 1,
     color: '#333',
-    marginRight: 10,
+    marginRight: 10, // Espaço para evitar sobreposição com os botões
   },
   noteActions: {
     flexDirection: 'row',
